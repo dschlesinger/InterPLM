@@ -1,6 +1,6 @@
 """Compute InterPLM SAE feature activations for three paper examples.
 
-Downloads the UniProt record and AlphaFold structure for each protein, embeds the
+Downloads the UniProt record and AlphaFold structure for each protein in examples.json, embeds the
 sequence with ESM-2-8M, encodes with the pretrained layer-4 InterPLM SAE, and saves
 per-residue activations of the chosen feature.
 
@@ -14,7 +14,7 @@ Outputs per protein, in this directory:
     {acc}.json            UniProt record (sequence + Swiss-Prot features)
     AF-{acc}.pdb          AlphaFold structure
     {acc}_acts.npy        (L, 10240) SAE activations for every feature
-    {acc}_feature.csv     residue, aa, activation of the highlighted feature
+    {acc}_f{feat}.csv     residue, aa, activation of the highlighted feature
 """
 import json
 import urllib.request
@@ -29,11 +29,11 @@ from interplm.sae.inference import load_sae_from_hf
 LAYER = 4
 HERE = Path(__file__).parent
 
-# acc, feature (ESM-2-8M layer 4), what it should light up
+# Three features (ESM-2-8M layer 4), three proteins each; see examples.json
 EXAMPLES = [
-    ("P17612", 8704, "PKA: kinase catalytic loop (Swiss-Prot active site D166 / binding sites)"),
-    ("B2GFH1", 939, "Isopentenyl-diphosphate isomerase: Nudix box (missing from Swiss-Prot)"),
-    ("Q46638", 9047, "AmsK glycosyltransferase: nucleotide-sugar binding (no Swiss-Prot features)"),
+    (acc, ex["feature"], ex["desc"])
+    for ex in json.load(open(HERE / "examples.json"))
+    for acc in ex["proteins"]
 ]
 
 
@@ -69,7 +69,7 @@ def main() -> None:
         np.save(HERE / f"{acc}_acts.npy", acts)
 
         v = acts[:, feat]
-        with open(HERE / f"{acc}_feature.csv", "w") as f:
+        with open(HERE / f"{acc}_f{feat}.csv", "w") as f:
             f.write("residue,aa,activation\n")
             for i, (aa, a) in enumerate(zip(seq, v), start=1):
                 f.write(f"{i},{aa},{a:.4f}\n")
